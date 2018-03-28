@@ -1,0 +1,24 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "server for angular 4",
+  "main": "index.js",
+  "scripts": {
+    "test": "server created"
+  },
+  "author": "dinesh",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.18.2",
+    "cookie-parser": "^1.4.3",
+    "express": "^4.16.3",
+    "express-session": "^1.15.6",
+    "orm": "^4.0.2",
+    "pg": "^7.4.1",
+    "pg-hstore": "^2.3.2",
+    "sequelize": "^4.36.1"
+  },
+  "devDependencies": {
+    "nodemon": "^1.17.2"
+  }
+}
