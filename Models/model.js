@@ -79,12 +79,13 @@ var courseData = connection.define('courseData', {
 
 
 var methods = {};
-methods.addCourseData = function (course_id, course_name, topic_name, course_data) {
+methods.addCourseData = function (course_id,topic_name, course_data,videolink) {
   return connection.sync().then(function () {
     return courseData.create({
       courseid: course_id,
-      coursename: course_name,
-      data: course_data
+      section: topic_name,
+      data: course_data,
+      videoLink : videolink
     })
   })
 }
@@ -124,8 +125,6 @@ methods.login = function (email_id) {
   });
 }
 methods.getCourse = function () {
-  console.log("model");
-  
   return connection.sync().then(function () {
     return courses.findAll({where: {coursename: {[Op.ne]: null}}});
   }).then(result => {
@@ -144,6 +143,47 @@ methods.getCourse = function () {
   .catch(error => {
     console.log("model error",error);
     return Promise.reject("Not found");
+  })
+}
+methods.getCourseData = function(course_id){
+  return connection.sync().then(function(){
+    return courseData.findAll({where:{courseid:course_id}})
+  }).then(result =>{
+    if(result != undefined){
+      return Promise.resolve(result)
+    }else{
+      return Promise.reject({"message":"course data is null"})
+    }
+  })
+  .catch(error =>{
+    return Promise.reject({"message":"error in course dara"})
+  })
+}
+methods.checkCourse = function(course_name){
+  
+  return connection.sync().then(function(){
+    return courses.findOne({where:{ coursename: course_name }})
+  }).then(result => {
+    console.log(result)
+    if(result != undefined && result.dataValues!=undefined){
+      return Promise.resolve(result.dataValues);
+    }else{
+      return Promise.reject("not found");
+    }
+  }).catch(error => {
+    return Promise.reject("not found");
+  })
+}
+methods.getSectionData = function(course_id,section){
+  return connection.sync().then(function(){
+    return courseData.findOne({where:{[Op.and]: [{courseid: course_id}, {section: section}]}})
+  }).then(result =>{
+    if(result != undefined){
+      return Promise.resolve(result)
+    }
+  })
+  .catch(error =>{
+    return Promise.reject({"message":"not found"})
   })
 }
 

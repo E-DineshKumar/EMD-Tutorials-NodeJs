@@ -22,7 +22,7 @@ var upload = multer({ storage: storage })
 
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
-app.use('/viewImage',express.static(__dirname+'/uploads'));
+app.use('/viewImage', express.static(__dirname + '/uploads'));
 
 app.use(function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "http://localhost:4200");
@@ -129,19 +129,11 @@ app.route('/createNew')
   .post(upload.single('pic'), function (req, res) {
     if (req.session.user && req.cookies.user_sid) {
       var data = req.body;
-      var flag = true;
-      console.log(1, data)
 
       res.setHeader('Content-Type', 'application/json');
 
       controller.cont.addCourse(data.courseId, data.courseName, req.file.path).then(result => {
-        if (flag == true) {
-          res.send(result);
-        }
-        else {
-          res.statusCode = 401
-          res.send({ "message": "error in image uploading" });
-        }
+        res.send(result);
       }
       ).catch(result => res.send(result))
 
@@ -151,13 +143,13 @@ app.route('/createNew')
       res.send(result);
     }
   })
-app.route('/courses/:coursename')
+app.route('/addCourseData')
   .post(function (req, res) {
     if (req.session.user && req.cookies.user_sid) {
       var data = req.body;
       var responseData = {};
       res.setHeader('Content-Type', 'application/json');
-      controller.cont.addCourseData(data.courseId, data.courseName, data.topicName, data.courseData).then(result => {
+      controller.cont.addCourseData(data.courseId, data.courseName, data.topicName, data.courseData, data.video).then(result => {
         res.send(result);
       }
       ).catch(result => res.send(result))
@@ -167,8 +159,8 @@ app.route('/courses/:coursename')
       res.send(result);
     }
   })
-app.route('viewCourse')
-  .post(function (req,res){
+app.route('/viewCourse')
+  .post(function (req, res) {
     if (req.session.user && req.cookies.user_sid) {
       controller.cont.getCourse().then(result => {
         res.send(result);
@@ -182,7 +174,36 @@ app.route('viewCourse')
       res.send(result);
     }
   })
-
+app.route('/course/:coursename')
+  .post(function(req,res){
+    if (req.session.user && req.cookies.user_sid) {
+      controller.cont.getCourseData(req.params.coursename).then(result => {
+        res.send(result);
+      })
+        .catch(error => {
+          res.send(error);
+        })
+    } else {
+      res.statusCode = 401
+      result = { "message": "not logged in" };
+      res.send(result);
+    }
+  })
+app.route('/course/:coursename/:section')
+  .post(function(req,res){
+    if (req.session.user && req.cookies.user_sid) {
+      controller.cont.getSectionData(req.params.coursename,req.params.section).then(result => {
+        res.send(result);
+      })
+        .catch(error => {
+          res.send(error);
+        })
+    } else {
+      res.statusCode = 401
+      result = { "message": "not logged in" };
+      res.send(result);
+    }
+  })
 app.listen(3000, '0.0.0.0', function () {
   console.log('Tutorial app listening on port 3000!')
 
