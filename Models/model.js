@@ -69,7 +69,7 @@ var courseData = connection.define('courseData', {
     allowNull: false
   },
   data: {
-    type: Sequelize.STRING,
+    type: Sequelize.TEXT,
     allowNull: false
   },
   videoLink : {
@@ -186,5 +186,26 @@ methods.getSectionData = function(course_id,section){
     return Promise.reject({"message":"not found"})
   })
 }
-
+methods.deleteCourse = function(course_id){
+  return connection.sync().then(function(){
+    return courses.destroy({where:{courseid:course_id}}).then(result =>{      
+      return courseData.destroy({where:{courseid:course_id}})
+    })
+  }).then(result =>{
+     return Promise.resolve(result)
+  })
+  .catch(error =>{
+    return Promise.reject(error)
+  })
+}
+methods.updateCourseData = function (course_id,topic_name, course_data,videolink) {
+  return connection.sync().then(function () {
+    return courseData.update({
+      data: course_data,
+      videoLink : videolink
+    },
+    {where:{[Op.and]: [{courseid: course_id}, {section: topic_name}]}}
+  )
+  })
+}
 exports.fun = methods;
