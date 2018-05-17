@@ -1,5 +1,7 @@
 const express = require('express')
 const app = express()
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
 var controller = require('./Controller/controller')
 var model = require('./Models/model.js')
 var bodyParser = require('body-parser');
@@ -24,6 +26,9 @@ app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 app.use('/uploads', express.static(__dirname + '/uploads'));
 
+
+
+
 app.use(function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "http://localhost:4200");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
@@ -37,10 +42,7 @@ app.use(session({
   key: 'user_sid',
   secret: 'somerandonstuffs',
   resave: true,
-  saveUninitialized: false,
-  cookie: {
-    expires: 600000
-  }
+  saveUninitialized: false
 }));
 // This middleware will check if user's cookie is still saved in browser and user is not set, then automatically log the user out.
 // This usually happens when you stop your express server after login, your cookie still remains saved in the browser.
@@ -55,23 +57,115 @@ app.use((req, res, next) => {
 // middleware function to check for logged-in users
 var sessionChecker = (req, res, next) => {
   if (req.session.user && req.cookies.user_sid) {
-    res.redirect('/');;
+    res.send(req.session.user)
   } else {
-    next();
+    res.statusCode = 401;
+    res.send({ "message": "not logged in" })
   }
 };
 // route for Home-Page
 app.get('/', sessionChecker, (req, res) => {
-  console.log(req.cookies.user_sid)
-  res.send("Welcome to my site")
+  console.log("hello")
+  //res.send("Welcome to my site")
 });
+
+app.get('/chat', function (req, res) {
+  res.sendFile(__dirname + '/index.html');
+})
+
+var numUsers = 0;
+var chatrooms = [];
+model.fun.getCourse().then(result => {
+  for (let val in result) {
+    
+    chatrooms.push({"coursename":result[val].coursename,"numUsers":0});
+  }
+  console.log(chatrooms);
+  
+  for (let i of chatrooms) {
+    var room = io.of('/' + (i.coursename).replace(/ /g, "-"));
+    room.on('connection', (socket) => {
+      var addedUser = false;
+      console.log("user connected");
+
+      // when the client emits 'new message', this listens and executes
+      socket.on('new message', (data) => {
+        console.log(data);
+        // we tell the client to execute 'new message'
+        socket.broadcast.emit('new message', {
+          username: socket.username,
+          message: data
+        });
+      });
+
+      // when the client emits 'add user', this listens and executes
+      socket.on('add user', (username) => {
+        if (addedUser) return;
+
+        // we store the username in the socket session for this client
+        socket.username = username;
+        ++i.numUsers;
+        addedUser = true;
+        socket.emit('login', {
+          numUsers: i.numUsers
+        });
+        // echo globally (all clients) that a person has connected
+        socket.broadcast.emit('user joined', {
+          username: socket.username,
+          numUsers: i.numUsers
+        });
+      });
+
+      // when the client emits 'typing', we broadcast it to others
+      socket.on('typing', () => {
+        socket.broadcast.emit('typing', {
+          username: socket.username
+        });
+      });
+
+      // when the client emits 'stop typing', we broadcast it to others
+      socket.on('stop typing', () => {
+        socket.broadcast.emit('stop typing', {
+          username: socket.username
+        });
+      });
+
+      // when the user disconnects.. perform this
+      socket.on('disconnect', () => {
+        if (addedUser) {
+          --i.numUsers;
+
+          // echo globally that this client has left
+          socket.broadcast.emit('user left', {
+            username: socket.username,
+            numUsers: i.numUsers
+          });
+        }
+      });
+      socket.on('event1', (data) => {
+        console.log(data.msg);
+      });
+
+      socket.emit('event2', {
+        msg: 'Server to client, do you read me? Over.'
+      });
+
+      socket.on('event3', (data) => {
+        console.log(data.msg);
+        socket.emit('event4', {
+          msg: 'Loud and clear :)'
+        });
+      });
+    });
+  }
+
+})
 
 
 app.post('/login', function (req, res) {
   console.log("session", req.session);
   if (req.session.user && req.cookies.user_sid) {
-    result = { "message": "loggedin" };
-    res.send(result);
+    res.send(req.session.user);
   } else {
     var data = req.body;
     var responseData = {};
@@ -80,7 +174,10 @@ app.post('/login', function (req, res) {
       req.session.user = result;
       res.send(result);
     }
-    ).catch(result => res.send(result))
+    ).catch(result => {
+      res.statusCode = 401
+      res.send(result)
+    })
   }
 })
 app.route('/home')
@@ -107,10 +204,12 @@ app.get('/logout', (req, res) => {
     result = { "message": "logout" };
     res.send(result);
   } else {
+    res.statusCode = 401;
     result = { "message": "login" };
     res.send(result);
   }
 });
+
 
 app.post('/signup', function (req, res) {
   var data = req.body;
@@ -118,7 +217,10 @@ app.post('/signup', function (req, res) {
   res.setHeader('Content-Type', 'application/json');
   controller.cont.signup(data.name, data.email, data.password, data.mobile).then(result =>
     res.send(result)
-  ).catch(result => res.send(result))
+  ).catch(result => {
+    res.statusCode = 401;
+    res.send(result)
+  })
 })
 
 
@@ -218,22 +320,22 @@ app.route('/deleteCourse')
     }
   })
 app.route('/update-section')
-.post(function(req, res){
-  var data = req.body;
-  console.log(data);
-  if (req.session.user && req.cookies.user_sid) {
-    controller.cont.updateSection(data.courseName,data.topicName,data.courseData,data.video).then(result => {
-      res.send(result);
-    })
-      .catch(error => {
-        res.send(error)
+  .post(function (req, res) {
+    var data = req.body;
+    console.log(data);
+    if (req.session.user && req.cookies.user_sid) {
+      controller.cont.updateSection(data.courseName, data.topicName, data.courseData, data.video).then(result => {
+        res.send(result);
       })
-  } else {
-    res.statusCode = 401
-    result = { "message": "not logged in" };
-    res.send(result);
-  }
-})
-app.listen(3000, '0.0.0.0', function () {
+        .catch(error => {
+          res.send(error)
+        })
+    } else {
+      res.statusCode = 401
+      result = { "message": "not logged in" };
+      res.send(result);
+    }
+  })
+http.listen(3000, '0.0.0.0', function () {
   console.log('Tutorial app listening on port 3000!')
 })

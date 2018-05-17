@@ -12,13 +12,13 @@ methods.login = function (email, password) {
       });
     } else {
       return Promise.reject({
-        "username": result.name, "message": "failure"
+        "username": result.name, "message": "Password incorrect"
       });
     }
   })
     .catch(error => {
       return Promise.reject({
-        "message": "failure"
+        "message": "Verify email/password"
       });
     })
 
@@ -34,7 +34,7 @@ methods.signup = function (name, email, password, mobile) {
     .catch(error => {
       console.log(error);
       return Promise.reject({
-        "message": "failure"
+        "message": "Already signed up"
       });
     })
 }
